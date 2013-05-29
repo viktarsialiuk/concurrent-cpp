@@ -20,9 +20,10 @@ public:
     typedef typename A::template rebind<stack_node>::other      node_allocator_type;
 
 private:
-    //POD structure
     struct stack_node
     {
+        stack_node(value_type const& data) : data_(data), next_(nullptr) {}
+
         value_type  data_;
         stack_node* next_;
     };
@@ -45,32 +46,27 @@ public:
     //TODO:think how to implement exception safe stack::pop without try catch
     bool try_pop(value_type& value)
     {
-        stack_node* prev_head;
+        stack_node* head;
 
         //acquire load, granteed to read correct value of next_ pointer and data_
         //should be changed to memory_order_consume
-        while (prev_head = head_.load(std::memory_order_acquire))
+        while (head = head_.load(std::memory_order_acquire))
         {
-            if (head_.compare_exchange_strong(prev_head, prev_head->next_, std::memory_order_release, std::memory_order_relaxed))
+            if (head_.compare_exchange_strong(head, head->next_, std::memory_order_release, std::memory_order_relaxed))
                 break;
         }
 
-
-        if (!prev_head)
+        if (!head)
             return false;
 
-        try
-        {
-            value = std::move(prev_head->data_);
-        }
-        catch(std::exception&)
-        {
-            destroy_node(prev_head);
-            throw;
-        }
 
-        destroy_node(prev_head);
+        //take ownership of head pointer
+        auto deleter = [this](stack_node* node) { destroy_node(node); };
+        std::unique_ptr<stack_node, decltype(deleter)> head_owner(head, deleter);
+
+        value = std::move(head->data_);
         return true;
+
     }
 
 
@@ -96,9 +92,7 @@ private:
         stack_node* node = alloc_.allocate(1);
         try
         {
-            new (&node->next_) stack_node_ptr(0);//nothrow
-            new (&node->data_) value_type(value);
-
+            new (node) stack_node(value);
         }
         catch (std::exception&)
         {
@@ -113,8 +107,7 @@ private:
     {
         if (node)
         {
-            node->data_.~value_type();
-            node->next_.~stack_node_ptr();
+            node->~stack_node();
             alloc_.deallocate(node, 1);
         }
     }

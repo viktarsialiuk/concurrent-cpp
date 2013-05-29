@@ -26,8 +26,7 @@ public:
     typedef T                                                   value_type;
     typedef queue_node*                                         queue_node_ptr;
     typedef A                                                   allocator_type;
-    //typedef typename A::template rebind<queue_node>::other      node_allocator_type;
-    typedef std::allocator<queue_node>                          node_allocator;
+    typedef typename A::template rebind<queue_node>::other      node_allocator_type;
 
 private:
     struct queue_node
@@ -124,7 +123,7 @@ private:
     spin_lock producer_lock_;
     queue_node* last_;
 
-    node_allocator alloc_;
+    node_allocator_type alloc_;
 };
 
 }//namespace concurrent
