@@ -67,6 +67,8 @@
     <ClInclude Include="concurrent\stack.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="tests\main.cpp" />
+    <ClCompile Include="tests\queue_test.cpp" />
     <ClCompile Include="tests\spin_lock_test.cpp" />
     <ClCompile Include="tests\stack_test.cpp" />
   </ItemGroup>

@@ -1,12 +1,13 @@
 #include <iostream>
 #include <thread>
 
-#include "../concurrent/stack.h"
+#include "../concurrent/queue.h"
 
 using namespace concurrent;
 using namespace std;
 
-concurrent::stack<int> data;
+concurrent::queue<int> data;
+
 
 static const int STEPS = 10000;
 static void producer()
@@ -39,7 +40,7 @@ static void consumer()
     cout << "\nconsumer stopped\n";
 }
 
-void stack_test()
+void queue_test()
 {
     std::thread thc(consumer);
     std::thread thp(producer);

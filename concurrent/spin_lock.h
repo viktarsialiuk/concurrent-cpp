@@ -1,11 +1,11 @@
 #ifndef CONCURRENT_SPIN_LOCK_H_
 #define CONCURRENT_SPIN_LOCK_H_
 #include <atomic>
-#include <algorithm>
 #include <thread>
 
 namespace concurrent
 {
+
 template<class T>
 void spin_wait(T pred)
 {

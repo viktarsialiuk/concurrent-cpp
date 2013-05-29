@@ -41,14 +41,11 @@ static void consumer()
     }
 }
 
-int main1(int argc, char* argv[])
+void spin_lock_test()
 {
     std::thread thc(consumer);
     std::thread thp(producer);
 
     thc.join();
     thp.join();
-
-    std::cin.get();
-    return 0;
 }

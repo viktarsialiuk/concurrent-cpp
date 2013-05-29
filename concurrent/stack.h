@@ -3,11 +3,12 @@
 
 #include <atomic>
 #include <memory>
-#include "spin_lock.h"
 
 namespace concurrent
 {
-    template<class T, class A = std::allocator<T> >
+
+
+template<class T, class A = std::allocator<T> >
 class stack
 {
     struct stack_node;
@@ -19,6 +20,7 @@ public:
     typedef typename A::template rebind<stack_node>::other      node_allocator_type;
 
 private:
+    //POD structure
     struct stack_node
     {
         value_type  data_;
@@ -26,7 +28,7 @@ private:
     };
 
 public:
-    stack() : head_(0) {}
+    stack() : head_(nullptr) {}
 
     ~stack()
     {
@@ -35,13 +37,12 @@ public:
         {
             stack_node* temp = node;
             node = node->next_;
-
-            destroy_node(node);
+            destroy_node(temp);
         }
     }
 
 
-    //EXCEPTION SAFE
+    //TODO:think how to implement exception safe stack::pop without try catch
     bool try_pop(value_type& value)
     {
         stack_node* prev_head;
@@ -50,7 +51,7 @@ public:
         //should be changed to memory_order_consume
         while (prev_head = head_.load(std::memory_order_acquire))
         {
-            if (head_.compare_exchange_strong(prev_head, prev_head->next_, std::memory_order_relaxed))
+            if (head_.compare_exchange_strong(prev_head, prev_head->next_, std::memory_order_release, std::memory_order_relaxed))
                 break;
         }
 
@@ -60,7 +61,7 @@ public:
 
         try
         {
-            value = prev_head->data_;
+            value = std::move(prev_head->data_);
         }
         catch(std::exception&)
         {
@@ -83,7 +84,7 @@ public:
             prev_head = head_.load(std::memory_order_relaxed);
             new_head->next_ = prev_head;
         }
-        while (!head_.compare_exchange_strong(prev_head, new_head, std::memory_order_release, std::memory_order_relaxed));
+        while (!head_.compare_exchange_strong(prev_head, new_head, std::memory_order_acq_rel, std::memory_order_acquire));
     }
 
     //void push(value_type&& value){}
