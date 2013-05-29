@@ -15,7 +15,6 @@ class stack
 
 public:
     typedef T                                                   value_type;
-    typedef stack_node*                                         stack_node_ptr;
     typedef A                                                   allocator_type;
     typedef typename A::template rebind<stack_node>::other      node_allocator_type;
 
@@ -66,7 +65,6 @@ public:
 
         value = std::move(head->data_);
         return true;
-
     }
 
 

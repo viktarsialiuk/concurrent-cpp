@@ -8,7 +8,7 @@
 
 #include <atomic>
 #include <memory>
-//#include <type_traits>
+#include <type_traits>
 #include <utility>          //for std::move
 #include <mutex>            //for lock guard
 
@@ -24,7 +24,6 @@ class queue
 
 public:
     typedef T                                                   value_type;
-    typedef queue_node*                                         queue_node_ptr;
     typedef A                                                   allocator_type;
     typedef typename A::template rebind<queue_node>::other      node_allocator_type;
 
@@ -34,7 +33,11 @@ private:
         queue_node(value_type const& data) : data_(data), next_(nullptr) {}
 
         value_type data_;
-        //std::aligned_storage<sizeof(value_type), std
+        //typename std::aligned_storage<
+        //    sizeof(value_type),
+        //    std::alignment_of<value_type>::value
+        //>::type data_;
+
         std::atomic<queue_node*> next_;
     };
 
@@ -124,6 +127,10 @@ private:
     queue_node* last_;
 
     node_allocator_type alloc_;
+
+    //non copyable
+    queue(queue const&);
+    queue& operator=(queue const&);
 };
 
 }//namespace concurrent
