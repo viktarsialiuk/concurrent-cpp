@@ -23,18 +23,11 @@ static void producer()
 static void consumer()
 {
     int items_count = 0;
-    while (items_count < STEPS)
+    for (int i = 0; i < STEPS; ++i)
     {
         int value = 0;
-        if (data.try_pop(value))
-        {
-            ++items_count;
-            cout << value << " ";
-        }
-        else
-        {
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
-        }
+        data.pop(value);
+        cout << value << " ";
     }
     cout << "\nconsumer stopped\n";
 }

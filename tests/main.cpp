@@ -6,8 +6,8 @@ void spin_lock_test();
 
 int main(int argc, char* argv[])
 {
-    queue_test();
-    //stack_test();
+    //queue_test();
+    stack_test();
     //spin_lock_test();
 
     std::cin.get();
