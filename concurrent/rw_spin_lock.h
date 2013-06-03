@@ -1,5 +1,6 @@
 #ifndef CONCURRENT_RW_SPIN_LOCK_H_
 #define CONCURRENT_RW_SPIN_LOCK_H_
+#include <stdio.h>
 #include <atomic>
 #include <thread>
 
@@ -9,7 +10,8 @@ namespace concurrent
 {
 
 
-//naive spin lock implementation
+//reader writer spin lock implementation
+//ported from TBB implementation
 class rw_spin_lock
 {
     enum
@@ -30,15 +32,15 @@ public:
 
     void unlock()
     {
-        state_.store(0, std::memory_order_release);
+        state_.fetch_and(kReaders, std::memory_order_release);
     }
 
-    void lock_reader()
+    void lock_shared()
     {
-        spin_wait([this]() { return try_lock_reader(); });
+        spin_wait([this]() { return try_lock_shared(); });
     }
 
-    void unlock_reader()
+    void unlock_shared()
     {
         state_.fetch_add(-kReader, std::memory_order_release);
     }
@@ -46,24 +48,59 @@ public:
 
     bool try_lock()
     {
-        int state = 0;
-        if (!state_.compare_exchange_strong(state, kWriter, std::memory_order_acquire, std::memory_order_relaxed))
+        int state = state_.load(std::memory_order_relaxed);
+        if (!(state & kBusy))
         {
-            return false;
+            //OK try to acquire writer lock using CAS
+            return state_.compare_exchange_strong(state, kWriter, std::memory_order_acquire, std::memory_order_relaxed);
         }
-        return true;
+        else if (!(state & KPendingWriter))
+        {
+            //writer has higher priority than readers
+            state_.fetch_or(KPendingWriter, std::memory_order_relaxed);
+        }
+        return false;
     }
 
-    bool try_lock_reader()
+    bool try_lock_shared()
     {
-        int state = state_.fetch_add(kReader, std::memory_order_acquire);
-        if ((state & (kWriter | KPendingWriter)))
+        int state = state_.load(std::memory_order_relaxed);
+        if (!(state & (KPendingWriter | kWriter)))
         {
+            //ok no writers and no pending writers
+            //try to acquire reader lock using fetch add instead of CAS
+            //return state_.compare_exchange_strong(state, state + kReader, std::memory_order_acquire, std::memory_order_relaxed);
+
+            state = state_.fetch_add(kReader, std::memory_order_acquire);
+            if (!(state & kWriter))
+                return true;
+
+            //unlock reader
             state_.fetch_add(-kReader, std::memory_order_release);
-            return false;
         }
-        return true;
+        return false;
     }
+
+    //bool try_lock()
+    //{
+    //    int state = 0;
+    //    if (!state_.compare_exchange_strong(state, kWriter, std::memory_order_acquire, std::memory_order_relaxed))
+    //    {
+    //        return false;
+    //    }
+    //    return true;
+    //}
+
+    //bool try_lock_reader()
+    //{
+    //    int state = state_.fetch_add(kReader, std::memory_order_acquire);
+    //    if ((state & (kWriter | KPendingWriter)))
+    //    {
+    //        state_.fetch_add(-kReader, std::memory_order_release);
+    //        return false;
+    //    }
+    //    return true;
+    //}
 
 
 private:
