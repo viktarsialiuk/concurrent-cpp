@@ -23,7 +23,8 @@ public:
 private:
     bool try_lock()
     {
-        return spin_.exchange(1, std::memory_order_acquire) == 0;
+        int expected = 0;
+        return spin_.compare_exchange_weak(expected, 1, std::memory_order_acquire);
     }
 
 private:

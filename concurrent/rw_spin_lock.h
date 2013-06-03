@@ -81,28 +81,6 @@ public:
         return false;
     }
 
-    //bool try_lock()
-    //{
-    //    int state = 0;
-    //    if (!state_.compare_exchange_strong(state, kWriter, std::memory_order_acquire, std::memory_order_relaxed))
-    //    {
-    //        return false;
-    //    }
-    //    return true;
-    //}
-
-    //bool try_lock_reader()
-    //{
-    //    int state = state_.fetch_add(kReader, std::memory_order_acquire);
-    //    if ((state & (kWriter | KPendingWriter)))
-    //    {
-    //        state_.fetch_add(-kReader, std::memory_order_release);
-    //        return false;
-    //    }
-    //    return true;
-    //}
-
-
 private:
     std::atomic<int> state_;
 
