@@ -4,7 +4,8 @@
 #include <atomic>
 #include <memory>
 
-#include "spin_lock.h"
+#include "spin_wait.h"
+#include "hp_gc.h"
 
 namespace concurrent
 {
@@ -59,23 +60,33 @@ public:
     //TODO:think how to implement exception safe stack::pop without try catch
     bool try_pop(value_type& value)
     {
-        stack_node* head = head_.load(std::memory_order_acquire);
-        //acquire memory order on both success and failure garantees to read correct value of next_ pointer
-        //compare exhchange will re-read head value so we do it empty while loop
-        //should be changed to memory_order_consume
-        while (head && !head_.compare_exchange_strong(head, head->next_, std::memory_order_acquire, std::memory_order_acquire));
-
-        if (!head)
+        stack_node* head;
+        hazard_pointer* hp = gc_.acquire();
+        do
         {
-            return false;
-        }
+            do
+            {
+                head = head_.load(std::memory_order_acquire);
+                if (!head)
+                    return false;
 
+                hp->hazard_.store(head, std::memory_order_acq_rel);
+                //TODO:#StoreLoad brarrier
+            }
+            while (head != head_.load(std::memory_order_relaxed));
+        }
+        while (!head_.compare_exchange_strong(head, head->next_, std::memory_order_release, std::memory_order_relaxed));
 
         //take ownership of head pointer
-        auto deleter = [this](stack_node* node) { destroy_node(node); };
-        std::unique_ptr<stack_node, decltype(deleter)> head_owner(head, deleter);
+        //auto deleter = [this](stack_node* node) { destroy_node(node); };
+        //std::unique_ptr<stack_node, decltype(deleter)> head_owner(head, deleter);
 
         value = std::move(head->data_);
+
+        gc_.release(hp);
+
+        //retire(head);
+        destroy_node(node);
         return true;
     }
 
@@ -137,6 +148,9 @@ private:
 
     //allocator_type alloc_;
     node_allocator_type alloc_;
+
+    //hazard pointer reclamaition strategy
+    hazard_pointer_gc gc_;
 
     //noncopyable
     stack(stack const&);

@@ -1,15 +1,19 @@
 #include <iostream>
+#include "api.h"
 
-void queue_test();
-void stack_test();
-void spin_lock_test();
+//static const size_t kMaxRetiredListSize = 100;
+//__declspec(thread) int array[kMaxRetiredListSize] = {0};
+
+using namespace std;
+
+
 
 int main(int argc, char* argv[])
 {
-    //queue_test();
-    stack_test();
-    //spin_lock_test();
+    cout << "start" << endl;
+    test_api::run();
 
+    cout << "done" << endl;
     std::cin.get();
     return 0;
 }

@@ -1,19 +1,10 @@
 #ifndef CONCURRENT_SPIN_LOCK_H_
 #define CONCURRENT_SPIN_LOCK_H_
 #include <atomic>
-#include <thread>
+#include "spin_wait.h"
 
 namespace concurrent
 {
-
-template<class T>
-void spin_wait(T pred)
-{
-    int step = 0;
-    while (!pred())
-        if (++step > 1000)
-            std::this_thread::yield();
-}
 
 class spin_lock
 {

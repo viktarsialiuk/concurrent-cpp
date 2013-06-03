@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 
+#include "api.h"
 #include "../concurrent/queue.h"
 
 using namespace concurrent;
@@ -16,9 +17,9 @@ static void producer()
     {
         data.push(i);
         //sleep for 10 microseconds to allow consumer to take data
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
+        //std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
-    cout << "\nproducer stopped\n";
+    //cout << "producer stopped\n";
 }
 
 static void consumer()
@@ -30,21 +31,27 @@ static void consumer()
         if (data.try_pop(value))
         {
             ++items_count;
-            cout << value << " ";
+            //cout << value << " ";
         }
         else
         {
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
+            //std::this_thread::sleep_for(std::chrono::microseconds(10));
         }
     }
-    cout << "\nconsumer stopped\n";
+    //cout << "consumer stopped\n";
 }
+
 
 void queue_test()
 {
+    cout << "queue_test" << endl;
+
     std::thread thc(consumer);
     std::thread thp(producer);
 
     thc.join();
     thp.join();
 }
+
+
+REGISTER_TEST(queue_test);

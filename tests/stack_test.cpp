@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 
+#include "api.h"
 #include "../concurrent/stack.h"
 
 using namespace concurrent;
@@ -15,9 +16,9 @@ static void producer()
     {
         data.push(i);
         //sleep for 10 microseconds to allow consumer to take data
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
+        //std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
-    cout << "\nproducer stopped\n";
+    //cout << "producer stopped\n";
 }
 
 static void consumer()
@@ -27,16 +28,20 @@ static void consumer()
     {
         int value = 0;
         data.pop(value);
-        cout << value << " ";
+        //cout << value << " ";
     }
-    cout << "\nconsumer stopped\n";
+    //cout << "consumer stopped\n";
 }
 
 void stack_test()
 {
+    cout << "stack_test" << endl;
+
     std::thread thc(consumer);
     std::thread thp(producer);
 
     thc.join();
     thp.join();
 }
+
+REGISTER_TEST(stack_test);

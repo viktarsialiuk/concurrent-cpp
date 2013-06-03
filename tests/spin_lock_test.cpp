@@ -1,6 +1,8 @@
 #include <iostream>
 #include <mutex>
 #include <deque>
+
+#include "api.h"
 #include "../concurrent/spin_lock.h"
 
 using namespace concurrent;
@@ -9,7 +11,7 @@ using namespace std;
 spin_lock mx;
 deque<int> data;
 
-static const int STEPS = 100000;
+static const int STEPS = 10000;
 static void producer()
 {
     for (int i = 0; i < STEPS; ++i)
@@ -35,7 +37,6 @@ static void consumer()
             {
                 res = data.front();
                 data.pop_front();
-                cout << res << " ";
             }
         }
     }
@@ -43,9 +44,13 @@ static void consumer()
 
 void spin_lock_test()
 {
+    cout << "spin_lock_test" << endl;
     std::thread thc(consumer);
     std::thread thp(producer);
 
     thc.join();
     thp.join();
 }
+
+
+REGISTER_TEST(spin_lock_test);
