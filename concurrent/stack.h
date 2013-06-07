@@ -44,38 +44,26 @@ public:
         }
     }
 
-
-    void pop(value_type& value)
-    {
-        stack_node* head;
-        spin_wait([this, &head](){ return try_pop_head(&head); });
-
-        //take ownership of head pointer
-        auto deleter = [this](stack_node* node) { destroy_node(node); };
-        std::unique_ptr<stack_node, decltype(deleter)> head_owner(head, deleter);
-
-        value = std::move(head->data_);
-    }
-
-    //TODO:think how to implement exception safe stack::pop without try catch
     bool try_pop(value_type& value)
     {
-        stack_node* head;
         hazard_pointer* hp = gc_.acquire();
+
+        stack_node* head = nullptr;
         do
         {
             do
             {
-                head = head_.load(std::memory_order_acquire);
+                //does not garantee to read the last preceding modification of the head_ and does synchronizes with CAS in push
+                head = head_.load(std::memory_order_relaxed);
+
                 if (!head)
                     return false;
 
-                hp->hazard_.store(head, std::memory_order_acq_rel);
-                //TODO:#StoreLoad brarrier
+                hp->hazard_.store(head, std::memory_order_seq_cst);
             }
-            while (head != head_.load(std::memory_order_relaxed));
+            while (head != head_.load(std::memory_order_seq_cst));
         }
-        while (!head_.compare_exchange_strong(head, head->next_, std::memory_order_release, std::memory_order_relaxed));
+        while (!head_.compare_exchange_strong(head, head->next_, std::memory_order_seq_cst, std::memory_order_relaxed));
 
         //take ownership of head pointer
         //auto deleter = [this](stack_node* node) { destroy_node(node); };
@@ -85,8 +73,8 @@ public:
 
         gc_.release(hp);
 
-        //retire(head);
-        destroy_node(node);
+        retire(head);
+        destroy_node(head);
         return true;
     }
 
@@ -97,11 +85,13 @@ public:
         stack_node* new_head = construct_node(value);
 
         new_head->next_ = head_.load(std::memory_order_relaxed);
-        //release memory order - synchronizes with acquire load in try_pop
-        while (!head_.compare_exchange_strong(new_head->next_, new_head, std::memory_order_release, std::memory_order_relaxed));
+        while (!head_.compare_exchange_strong(new_head->next_, new_head, std::memory_order_seq_cst, std::memory_order_relaxed));
     }
 
-    //void push(value_type&& value){}
+    void retire(stack_node* node)
+    {
+        //static thread_local
+    }
 
 
 private:

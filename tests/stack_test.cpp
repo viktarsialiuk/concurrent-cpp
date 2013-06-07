@@ -27,8 +27,10 @@ static void consumer()
     for (int i = 0; i < STEPS; ++i)
     {
         int value = 0;
-        data.pop(value);
-        //cout << value << " ";
+        if (data.try_pop(value))
+        {
+            //cout << value << " ";
+        }
     }
     //cout << "consumer stopped\n";
 }

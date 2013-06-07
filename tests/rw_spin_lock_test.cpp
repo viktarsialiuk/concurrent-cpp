@@ -31,7 +31,7 @@ static void producer()
         lock.lock();
         data = i + 1;
         lock.unlock();
-        this_thread::sleep_for(std::chrono::microseconds(10));
+        //this_thread::sleep_for(std::chrono::microseconds(1));
     }
     cout << "producer stopped\n";
 }

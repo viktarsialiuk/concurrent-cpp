@@ -45,16 +45,17 @@ public:
         }
     }
 
-    hazard_pointer* head()
-    {
-        //acquire load garantees to read correct values of all members of hazard_pointer structure
-        return head_.load(std::memory_order_acquire);
-    }
+    //hazard_pointer* head()
+    //{
+    //    //acquire load garantees to read correct values of all members of hazard_pointer structure
+    //    return head_.load(std::memory_order_acquire);
+    //}
 
     hazard_pointer* acquire()
     {
         //acquire load garantees to read correct values of next_ pointer
-        hazard_pointer* hp = head_.load(std::memory_order_acquire);
+        //but we do not need sequential consistency here
+        hazard_pointer* hp = head_.load(std::memory_order_seq_cst);
         for (; hp; hp = hp->next_)
         {
             int expected = 0;
@@ -66,44 +67,45 @@ public:
         hp->next_ = head_.load(std::memory_order_relaxed);
 
         //publish new member to all
-        while(!head_.compare_exchange_strong(hp->next_, hp, std::memory_order_release, std::memory_order_relaxed));
+        while(!head_.compare_exchange_strong(hp->next_, hp, std::memory_order_seq_cst, std::memory_order_relaxed));
         return hp;
     }
 
 
     void release(hazard_pointer* hp)
     {
-        //memory order acquire release
-        //hazard pointer can be deleted only when all operations on data pointer are done
-        hp->hazard_.store(nullptr, std::memory_order_release);
+        hp->hazard_.store(nullptr, std::memory_order_seq_cst);
         hp->active_.store(0, std::memory_order_relaxed);
     }
 
     template<class T, class F>
-    size_t scan(T** rlist, size_t size, F deleter)
+    size_t scan(T** rlist, size_t rlist_size, F deleter)
     {
         std::vector<void*> hp;
 
         //acquire load garantees to read correct values of next_ pointer
-        hazard_pointer* p = head_.load(std::memory_order_acquire);
+        //but does not garantee to read value of the last preceding modification of head_
+        //that's why seq_cst memory order must be used
+        hazard_pointer* p = head_.load(std::memory_order_seq_cst);
         for (; p; p = p->next_)
         {
-            void* hazard = p->hazard_.load(std::memory_order_relaxed);
+            //seq_cst load garantee to read the last memory_order_seq_cst modification or later a modification
+            void* hazard = p->hazard_.load(std::memory_order_seq_cst);
             if (hazard)
                 hp.push_back(hazard);
         }
 
         std::sort(std::begin(hp), std::end(hp));
 
-        size_t new_size = size;
-        for (size_t i = 0; i < new_size;)
+        size_t size = rlist_size;
+        for (size_t i = 0; i < size;)
         {
             if (!std::binary_search(std::begin(hp), std::end(hp), rlist[i]))
             {
                 //pointer can be safely deleted
                 deleter(rlist[i]);
-                std::swap(rlist[i], rlist[new_size - 1]);
-                --new_size;
+                std::swap(rlist[i], rlist[size - 1]);
+                --size;
             }
             else
             {
@@ -112,7 +114,7 @@ public:
         }
 
         //printf("CLEANUP SUCCEEDED: %d deleted\n", size - new_size);
-        return new_size;
+        return size;
     }
 
 

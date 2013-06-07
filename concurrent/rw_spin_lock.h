@@ -51,8 +51,10 @@ public:
         int state = state_.load(std::memory_order_relaxed);
         if (!(state & kBusy))
         {
-            //OK try to acquire writer lock using CAS
-            return state_.compare_exchange_strong(state, kWriter, std::memory_order_acquire, std::memory_order_relaxed);
+            //OK no readers no writers
+            //try to acquire writer lock using CAS
+            if (state_.compare_exchange_strong(state, kWriter, std::memory_order_acquire, std::memory_order_relaxed))
+                return true;
         }
         else if (!(state & KPendingWriter))
         {
@@ -67,8 +69,8 @@ public:
         int state = state_.load(std::memory_order_relaxed);
         if (!(state & (KPendingWriter | kWriter)))
         {
-            //ok no writers and no pending writers
-            //try to acquire reader lock using fetch add instead of CAS
+            //OK no writers and no pending writers
+            //try to acquire reader lock using fetch_add instead of CAS
             //return state_.compare_exchange_strong(state, state + kReader, std::memory_order_acquire, std::memory_order_relaxed);
 
             state = state_.fetch_add(kReader, std::memory_order_acquire);
@@ -76,6 +78,7 @@ public:
                 return true;
 
             //unlock reader
+            //TODO:it seems can we use relaxed fetch add on failure
             state_.fetch_add(-kReader, std::memory_order_release);
         }
         return false;

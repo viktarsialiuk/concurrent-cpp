@@ -1,6 +1,7 @@
 #ifndef CONCURRENT_SPIN_LOCK_H_
 #define CONCURRENT_SPIN_LOCK_H_
 #include <atomic>
+#include <mutex>
 #include "spin_wait.h"
 
 namespace concurrent
@@ -8,6 +9,9 @@ namespace concurrent
 
 class spin_lock
 {
+public:
+    typedef std::lock_guard<spin_lock> lock_guard;
+
 public:
     spin_lock() : spin_(0) {}
 

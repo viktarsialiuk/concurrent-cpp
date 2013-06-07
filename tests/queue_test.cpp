@@ -1,41 +1,60 @@
 #include <iostream>
 #include <thread>
 
+#include <intrin.h>
+
+
 #include "api.h"
 #include "../concurrent/queue.h"
 
 using namespace concurrent;
 using namespace std;
 
-concurrent::queue<int> data;
 
+concurrent::spsc_bounded_queue<int, 1024*1024> data;
+concurrent::mpmc_queue<int> data1;
 
-static const int STEPS = 10000;
+std::atomic<int> flag(0);
+
+static const int kSteps = 10000000;
+
 static void producer()
 {
-    for (int i = 0; i < STEPS; ++i)
+    while (flag.load(std::memory_order_relaxed) == 0)
+        std::this_thread::yield();
+
+    int item = 0, failed = 0;
+    for (int i = 0; i < kSteps; ++i)
     {
-        data.push(i);
-        //sleep for 10 microseconds to allow consumer to take data
-        //std::this_thread::sleep_for(std::chrono::microseconds(10));
+        while(!data.try_push(i))
+        {
+            //++failed;
+            std::this_thread::yield();
+        }
     }
-    //cout << "producer stopped\n";
+    //cout << "failed inserts " << failed;
 }
 
 static void consumer()
 {
+    while (flag.load(std::memory_order_relaxed) == 0)
+        std::this_thread::yield();
+
+
     int items_count = 0;
-    while (items_count < STEPS)
+    //while (items_count < kSteps)
+    int value = 0;
+    for (int i = 0; i < kSteps;)
     {
-        int value = 0;
         if (data.try_pop(value))
         {
-            ++items_count;
+            ++i;
+            //++items_count;
             //cout << value << " ";
         }
         else
         {
-            //std::this_thread::sleep_for(std::chrono::microseconds(10));
+            std::this_thread::yield();
         }
     }
     //cout << "consumer stopped\n";
@@ -44,13 +63,19 @@ static void consumer()
 
 void queue_test()
 {
-    cout << "queue_test" << endl;
+    cout << "queue_test:";
 
     std::thread thc(consumer);
     std::thread thp(producer);
 
+    unsigned long long start = __rdtsc();
+    flag.store(1, std::memory_order_relaxed);
+
     thc.join();
     thp.join();
+
+    unsigned long long time = __rdtsc() - start;
+    std::cout << " cycles/op=" << time / (kSteps * 2) << std::endl;
 }
 
 
